@@ -1,74 +1,76 @@
-﻿# -*- coding: utf-8 -*-
-import os
-import cv2
-import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
-from werkzeug.utils import secure_filename
+document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.getElementById("file");
+    const analyzeBtn = document.getElementById("analyze-btn");
+    const refreshBtn = document.getElementById("refresh-btn");
+    const resultSection = document.getElementById("result");
+    const exportBtn = document.createElement("button");
+    exportBtn.textContent = "Export PDF";
+    exportBtn.classList.add("primary-btn");
+    exportBtn.style.display = "none";
+    document.body.appendChild(exportBtn);
 
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-RESULT_FOLDER = 'static/results'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
+    fileInput.addEventListener("change", () => {
+        analyzeBtn.disabled = !fileInput.files.length;
+    });
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['RESULT_FOLDER'] = RESULT_FOLDER
+    analyzeBtn.addEventListener("click", async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
 
+        const formData = new FormData();
+        formData.append("file", file);
 
-def analyze_leaf(image_path):
-    image = cv2.imread(image_path)
-    if image is None:
-        return None, "Error: Unable to read image."
-    
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    lower_green = np.array([25, 40, 40])
-    upper_green = np.array([90, 255, 255])
-    mask_leaf = cv2.inRange(hsv, lower_green, upper_green)
-    leaf_area = np.count_nonzero(mask_leaf)
-    
-    lower_brown = np.array([10, 50, 50])
-    upper_brown = np.array([30, 255, 255])
-    mask_lesion = cv2.inRange(hsv, lower_brown, upper_brown)
-    lesion_area = np.count_nonzero(mask_lesion)
-    
-    if leaf_area == 0:
-        return None, "Error: No leaf detected."
-    
-    severity = (lesion_area / leaf_area) * 100
-    result_text = f"Total Leaf Area: {leaf_area} pixels²\nLesion Area: {lesion_area} pixels²\nDisease Severity: {severity:.2f}%"
-    
-    contours, _ = cv2.findContours(mask_lesion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(image, contours, -1, (0, 0, 255), 2)
-    result_path = os.path.join(RESULT_FOLDER, os.path.basename(image_path))
-    cv2.imwrite(result_path, image)
-    
-    return os.path.basename(result_path), result_text
+        try {
+            const response = await fetch("/upload", {  // Changed to relative path
+                method: "POST",
+                body: formData
+            });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+            const data = await response.json();
 
+            if (data.error) {
+                resultSection.innerHTML = `<p class='error'>${data.error}</p>`;
+                exportBtn.style.display = "none";
+            } else {
+                const resultText = data.result.replace(/\n/g, '<br>');
+                const highlightedText = resultText
+                    .replace("Total Leaf Area:", "<span class='bold-text'>Total Leaf Area:</span>")
+                    .replace("Lesion Area:", "<span class='bold-text'>Lesion Area:</span>")
+                    .replace("Disease Severity:", "<span class='bold-text'>Disease Severity:</span>")
+                    .replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
+                    .replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
+                    .replace(/(\d+\.\d+)%/, "<span class='red-value'>$1<span class='red-separator'>%</span></span>");
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"})
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"})
-    
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(file_path)
-    
-    result_image, analysis_text = analyze_leaf(file_path)
-    if result_image is None:
-        return jsonify({"error": analysis_text})
-    
-    return jsonify({"image": url_for('static', filename=f'results/{result_image}'), "result": analysis_text})
+                resultSection.innerHTML = `
+                    <h2>Analysis Result</h2>
+                    <p>${highlightedText}</p>
+                    <img src="${data.image}" alt="Processed Leaf Image">
+                `;
+                exportBtn.style.display = "block";
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            resultSection.innerHTML = `<p class='error'>Failed to analyze the image. ${error.message}</p>`;
+            exportBtn.style.display = "none";
+        }
+    });
 
+    refreshBtn.addEventListener("click", () => {
+        fileInput.value = "";
+        analyzeBtn.disabled = true;
+        resultSection.innerHTML = "";
+        exportBtn.style.display = "none";
+    });
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    exportBtn.addEventListener("click", () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("LeafScan Analysis Report", 10, 10);
+        doc.text(resultSection.innerText, 10, 20);
+        doc.save("LeafScan_Report.pdf");
+    });
+});
