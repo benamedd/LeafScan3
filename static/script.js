@@ -13,58 +13,52 @@ document.addEventListener("DOMContentLoaded", () => {
         analyzeBtn.disabled = !fileInput.files.length;
     });
 
-    
-	
-	analyzeBtn.addEventListener("click", async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    analyzeBtn.addEventListener("click", async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
+        const formData = new FormData();
+        formData.append("file", file);
 
-    try {
-        const response = await fetch("http://127.0.0.1:5000/upload", {
-            method: "POST",
-            body: formData
-        });
+        try {
+            const response = await fetch("/upload", {  // Changed to relative path
+                method: "POST",
+                body: formData
+            });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-        const data = await response.json();
+            const data = await response.json();
 
-        if (data.error) {
-            resultSection.innerHTML = `<p class='error'>${data.error}</p>`;
+            if (data.error) {
+                resultSection.innerHTML = `<p class='error'>${data.error}</p>`;
+                exportBtn.style.display = "none";
+            } else {
+                const resultText = data.result.replace(/\n/g, '<br>');
+                const highlightedText = resultText
+                    .replace("Total Leaf Area:", "<span class='bold-text'>Total Leaf Area:</span>")
+                    .replace("Lesion Area:", "<span class='bold-text'>Lesion Area:</span>")
+                    .replace("Disease Severity:", "<span class='bold-text'>Disease Severity:</span>")
+                    .replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
+                    .replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
+                    .replace(/(\d+\.\d+)%/, "<span class='red-value'>$1<span class='red-separator'>%</span></span>");
+
+                resultSection.innerHTML = `
+                    <h2>Analysis Result</h2>
+                    <p>${highlightedText}</p>
+                    <img src="${data.image}" alt="Processed Leaf Image">
+                `;
+                exportBtn.style.display = "block";
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            resultSection.innerHTML = `<p class='error'>Failed to analyze the image. ${error.message}</p>`;
             exportBtn.style.display = "none";
-        } else {
-            const resultText = data.result.replace(/\n/g, '<br>');
-            const highlightedText = resultText
-                .replace("Total Leaf Area:", "<span class='bold-text'>Total Leaf Area:</span>")
-                .replace("Lesion Area:", "<span class='bold-text'>Lesion Area:</span>")
-                .replace("Disease Severity:", "<span class='bold-text'>Disease Severity:</span>")
-                .replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
-				.replace(/(\d+) pixels²/, "<span class='green-value'>$1<span class='red-separator'> pixels²</span></span>")
-                .replace(/(\d+\.\d+)%/, "<span class='red-value'>$1<span class='red-separator'>%</span></span>");
-
-            resultSection.innerHTML = `
-                <h2>Analysis Result</h2>
-                <p>${highlightedText}</p>
-                <img src="${data.image}" alt="Processed Leaf Image">
-            `;
-            exportBtn.style.display = "block";
         }
-    } catch (error) {
-        console.error("Error:", error);
-        resultSection.innerHTML = `<p class='error'>Failed to analyze the image. ${error.message}</p>`;
-        exportBtn.style.display = "none";
-    }
-});
+    });
 
-	
-	
-	
-	
     refreshBtn.addEventListener("click", () => {
         fileInput.value = "";
         analyzeBtn.disabled = true;
