@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeafScan AI | Disease Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>LeafScan AI</h1>
+        <p>Advanced Leaf Disease Detection</p>
+    </header>
+
+    <section class="upload-section">
+        <label for="file" class="file-label">
+            <i class="fas fa-upload"></i> Select an Image
+        </label>
+        <input type="file" id="file" accept="image/*">
+        <button id="analyze-btn" disabled>Analyze</button>
+        <button id="refresh-btn">Reset</button>
+    </section>
+
+    <section id="result" class="result-section"></section>
+
+    <script src="static/script.js"></script>
+</body>
+</html>
